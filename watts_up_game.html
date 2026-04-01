@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Watts Up?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: #f5efe6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Paper texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 16px; }
+
+  /* ── SCREENS ── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── SPLASH ── */
+  #splash {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .logo-wrap { margin-bottom: 24px; }
+  .logo-factory {
+    width: 220px;
+    margin: 0 auto 12px;
+  }
+  .game-title {
+    font-size: 52px;
+    font-weight: 900;
+    color: #c94f2a;
+    letter-spacing: -1px;
+    line-height: 1;
+    text-shadow: 3px 3px 0 #f5c97a;
+  }
+  .game-sub {
+    font-size: 16px;
+    color: #7a6a58;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+  .splash-desc {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin: 24px auto;
+    max-width: 480px;
+    text-align: left;
+    font-size: 14px;
+    color: #5a4a38;
+    line-height: 1.7;
+  }
+  .splash-desc h3 { font-size: 15px; font-weight: 700; color: #c94f2a; margin-bottom: 8px; }
+  .splash-desc .rule { display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start; }
+  .splash-desc .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-block;
+    padding: 14px 36px;
+    border-radius: 50px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: #c94f2a; color: #fff; box-shadow: 0 4px 0 #8a2f14; }
+  .btn-primary:hover { box-shadow: 0 6px 0 #8a2f14; transform: translateY(-2px); }
+  .btn-green { background: #4caf7d; color: #fff; box-shadow: 0 4px 0 #2e7a52; }
+  .btn-green:hover { box-shadow: 0 6px 0 #2e7a52; transform: translateY(-2px); }
+  .btn-red { background: #e05a40; color: #fff; box-shadow: 0 4px 0 #9a3322; }
+  .btn-yellow { background: #f5c97a; color: #6b4a10; box-shadow: 0 4px 0 #c9962a; }
+  .btn-gray { background: #b0a090; color: #fff; box-shadow: 0 3px 0 #7a6a58; font-size: 14px; padding: 10px 24px; }
+  .btn-sm { padding: 8px 18px; font-size: 14px; }
+
+  /* ── GAME HUD ── */
+  #game {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .hud-top {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 16px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .day-badge {
+    background: #c94f2a;
+    color: #fff;
+    border-radius: 50px;
+    padding: 4px 14px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .day-name { font-size: 15px; font-weight: 700; color: #5a4a38; }
+  .flavor-text { font-size: 12px; color: #9a8a78; font-style: italic; }
+  .hud-stats { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-val { font-size: 20px; font-weight: 900; color: #c94f2a; }
+  .stat-lbl { font-size: 11px; color: #9a8a78; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hearts { display: flex; gap: 4px; }
+  .heart { font-size: 20px; transition: transform 0.2s; }
+  .heart.lost { filter: grayscale(1); opacity: 0.3; transform: scale(0.85); }
+
+  /* ── TIME BAR ── */
+  .time-section { }
+  .time-labels { display: flex; justify-content: space-between; font-size: 11px; color: #9a8a78; font-weight: 600; margin-bottom: 4px; }
+  .time-track {
+    height: 20px;
+    background: #e8d5b0;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 2px solid #c9b88a;
+  }
+  .time-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f5c97a, #f0a030);
+    border-radius: 10px;
+    transition: width 0.3s;
+    position: relative;
+  }
+  .time-sun {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    transition: left 0.3s;
+    pointer-events: none;
+  }
+
+  /* ── POWER METER ── */
+  .meter-section {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+  }
+  .meter-title { font-size: 13px; font-weight: 700; color: #9a8a78; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .meter-dial {
+    width: 180px;
+    height: 100px;
+    margin: 0 auto 8px;
+    position: relative;
+    overflow: visible;
+  }
+  .meter-numbers {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #9a8a78;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .balance-label {
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .balance-label.ok { color: #4caf7d; }
+  .balance-label.warn { color: #f0a030; }
+  .balance-label.danger { color: #e05a40; }
+
+  /* ── POWER FLOWS ── */
+  .flows-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .flow-card {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .flow-card.full { grid-column: 1 / -1; }
+  .flow-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .flow-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .icon-solar { background: #fde68a; }
+  .icon-battery { background: #bbf7d0; }
+  .icon-gen { background: #fcd9b0; }
+  .icon-load { background: #e0d4f0; }
+  .flow-name { font-size: 13px; font-weight: 700; color: #5a4a38; }
+  .flow-val { font-size: 22px; font-weight: 900; }
+  .flow-val.solar { color: #d97706; }
+  .flow-val.battery { color: #059669; }
+  .flow-val.gen { color: #e05a40; }
+  .flow-val.load { color: #7c3aed; }
+  .flow-unit { font-size: 12px; color: #9a8a78; font-weight: 600; }
+  .flow-sub { font-size: 11px; color: #9a8a78; margin-top: 2px; }
+
+  /* Battery bar */
+  .battery-bar-wrap { margin: 6px 0; }
+  .battery-bar-track {
+    height: 14px;
+    background: #d1fae5;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1.5px solid #6ee7b7;
+  }
+  .battery-bar-fill {
+    height: 100%;
+    background: #10b981;
+    border-radius: 7px;
+    transition: width 0.5s;
+  }
+  .battery-bar-fill.low { background: #f59e0b; }
+  .battery-bar-fill.empty { background: #ef4444; }
+
+  /* ── CONTROLS ── */
+  .controls-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .ctrl-card {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 14px;
+    padding: 12px;
+    text-align: center;
+  }
+  .ctrl-label { font-size: 11px; font-weight: 700; color: #9a8a78; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .ctrl-btn-wrap { display: flex; flex-direction: column; gap: 6px; }
+
+  /* Generator toggle */
+  .gen-toggle {
+    width: 100%;
+    padding: 10px;
+    border-radius: 50px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .gen-toggle.off { background: #e8d5b0; color: #9a8a78; box-shadow: 0 3px 0 #c9b88a; }
+  .gen-toggle.on { background: #e05a40; color: #fff; box-shadow: 0 3px 0 #9a3322; }
+  .gen-status { font-size: 11px; margin-top: 4px; color: #9a8a78; }
+  .gen-status.running { color: #e05a40; font-weight: 700; }
+
+  /* ── STORM BANNER ── */
+  .storm-banner {
+    background: #4a5568;
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 16px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+    display: none;
+  }
+  .storm-banner.active { display: block; }
+
+  /* ── EVENT LOG ── */
+  .event-log {
+    background: #fff9f0;
+    border: 2px solid #e8d5b0;
+    border-radius: 14px;
+    padding: 10px 14px;
+    max-height: 80px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #7a6a58;
+    line-height: 1.6;
+  }
+  .log-entry { padding: 1px 0; }
+  .log-entry.warn { color: #d97706; font-weight: 700; }
+  .log-entry.danger { color: #e05a40; font-weight: 700; }
+  .log-entry.good { color: #059669; font-weight: 700; }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(90,74,56,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    display: none;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    background: #fff9f0;
+    border: 3px solid #e8d5b0;
+    border-radius: 24px;
+    padding: 32px 28px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    position: relative;
+  }
+  .modal-emoji { font-size: 56px; margin-bottom: 8px; }
+  .modal-title { font-size: 26px; font-weight: 900; color: #c94f2a; margin-bottom: 6px; }
+  .modal-sub { font-size: 14px; color: #7a6a58; margin-bottom: 20px; line-height: 1.5; }
+  .modal-stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+  .m-stat { text-align: center; }
+  .m-stat-val { font-size: 28px; font-weight: 900; color: #c94f2a; }
+  .m-stat-lbl { font-size: 12px; color: #9a8a78; font-weight: 600; }
+
+  /* ── BLACKOUT FLASH ── */
+  .blackout-flash {
+    position: fixed;
+    inset: 0;
+    background: #1a0a00;
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .blackout-flash.active { display: flex; }
+  .blackout-flash span { color: #f5c97a; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 24px; }
+  .blackout-flash small { color: #9a8a78; font-family: 'Nunito', sans-serif; font-size: 14px; }
+
+  /* Scrollbar */
+  .event-log::-webkit-scrollbar { width: 4px; }
+  .event-log::-webkit-scrollbar-thumb { background: #c9b88a; border-radius: 4px; }
+
+  /* Pulse animation for blackout warning */
+  @keyframes pulse-red { 0%,100% { border-color: #e8d5b0; } 50% { border-color: #e05a40; } }
+  .meter-section.danger-pulse { animation: pulse-red 0.5s ease-in-out infinite; }
+
+  .ctrl-card canvas { display: block; margin: 0 auto; }
+
+  .speed-note { font-size: 11px; color: #9a8a78; text-align: center; margin-top: -4px; }
+
+  /* Storm cloud anim */
+  @keyframes drift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+  .storm-cloud { display: inline-block; animation: drift 2s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SPLASH -->
+  <div id="splash" class="screen active">
+    <div class="logo-wrap">
+      <svg class="logo-factory" viewBox="0 0 220 110" xmlns="http://www.w3.org/2000/svg">
+        <!-- sky -->
+        <rect width="220" height="110" fill="#fdf6e3" rx="12"/>
+        <!-- sun -->
+        <circle cx="185" cy="28" r="18" fill="#f5c97a" stroke="#e8a020" stroke-width="2"/>
+        <line x1="185" y1="4" x2="185" y2="10" stroke="#e8a020" stroke-width="2" stroke-linecap="round"/>
+        <line x1="185" y1="46" x2="185" y2="52" stroke="#e8a020" stroke-width="2" stroke-linecap="round"/>
+        <line x1="161" y1="28" x2="167" y2="28" stroke="#e8a020" stroke-width="2" stroke-linecap="round"/>
+        <line x1="203" y1="28" x2="209" y2="28" stroke="#e8a020" stroke-width="2" stroke-linecap="round"/>
+        <!-- factory building -->
+        <rect x="10" y="55" width="120" height="50" fill="#e8d5b0" stroke="#9a7a50" stroke-width="2"/>
+        <!-- roof sawtooth -->
+        <polygon points="10,55 30,35 50,55 70,35 90,55 110,35 130,55" fill="#c94f2a" stroke="#8a2f14" stroke-width="1.5"/>
+        <!-- chimney -->
+        <rect x="100" y="25" width="12" height="30" fill="#7a6a58" stroke="#5a4a38" stroke-width="1.5"/>
+        <!-- smoke puffs -->
+        <circle cx="106" cy="20" r="5" fill="#d4c8b8" opacity="0.7"/>
+        <circle cx="110" cy="13" r="4" fill="#d4c8b8" opacity="0.5"/>
+        <circle cx="104" cy="8" r="3" fill="#d4c8b8" opacity="0.3"/>
+        <!-- windows -->
+        <rect x="22" y="68" width="16" height="14" rx="3" fill="#a8d8f0" stroke="#5a8aaa" stroke-width="1.5"/>
+        <rect x="52" y="68" width="16" height="14" rx="3" fill="#a8d8f0" stroke="#5a8aaa" stroke-width="1.5"/>
+        <rect x="82" y="68" width="16" height="14" rx="3" fill="#a8d8f0" stroke="#5a8aaa" stroke-width="1.5"/>
+        <!-- door -->
+        <rect x="47" y="85" width="20" height="20" rx="3" fill="#9a7a50" stroke="#7a5a30" stroke-width="1.5"/>
+        <!-- candy sign -->
+        <rect x="30" y="57" width="54" height="11" rx="3" fill="#fff0f5" stroke="#c94f2a" stroke-width="1.5"/>
+        <text x="57" y="66" text-anchor="middle" font-size="7" font-family="Nunito,sans-serif" font-weight="800" fill="#c94f2a">SWEET CO.</text>
+        <!-- solar panel -->
+        <rect x="148" y="62" width="60" height="36" rx="4" fill="#7ec8e3" stroke="#4a8aaa" stroke-width="2"/>
+        <line x1="148" y1="74" x2="208" y2="74" stroke="#4a8aaa" stroke-width="1"/>
+        <line x1="148" y1="86" x2="208" y2="86" stroke="#4a8aaa" stroke-width="1"/>
+        <line x1="166" y1="62" x2="166" y2="98" stroke="#4a8aaa" stroke-width="1"/>
+        <line x1="184" y1="62" x2="184" y2="98" stroke="#4a8aaa" stroke-width="1"/>
+        <line x1="202" y1="62" x2="202" y2="98" stroke="#4a8aaa" stroke-width="1"/>
+        <!-- bolt -->
+        <polygon points="178,45 172,60 178,57 174,72 183,55 177,58" fill="#f5c97a" stroke="#d4a010" stroke-width="1"/>
+        <!-- ground -->
+        <rect x="0" y="98" width="220" height="12" rx="0" fill="#c9b88a"/>
+        <rect x="0" y="105" width="220" height="5" rx="0" fill="#b0a080"/>
+      </svg>
+      <div class="game-title">Watts Up?</div>
+      <div class="game-sub">Keep the candy flowing. Keep the lights on.</div>
+    </div>
+    <div class="splash-desc">
+      <h3>How to play</h3>
+      <div class="rule"><span class="icon">☀️</span><span>Solar panels generate free power during the day. Clouds and storms reduce output.</span></div>
+      <div class="rule"><span class="icon">🔋</span><span>Charge the battery when you have surplus power. Discharge it when demand spikes.</span></div>
+      <div class="rule"><span class="icon">⚙️</span><span>The gas generator is reliable but costs money every second it runs. Use it as backup.</span></div>
+      <div class="rule"><span class="icon">🍬</span><span>The factory earns candy money every second it runs. Keep supply ≥ demand!</span></div>
+      <div class="rule"><span class="icon">💥</span><span>3 blackouts and the candy business closes. Don't let the lights go out!</span></div>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()">Fire up the factory!</button>
+  </div>
+
+  <!-- GAME -->
+  <div id="game" class="screen">
+
+    <!-- TOP HUD -->
+    <div class="hud-top">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="day-badge" id="day-badge">Day 1</div>
+          <div class="day-name" id="day-name">Monday</div>
+        </div>
+        <div class="flavor-text" id="flavor-text">The caramel crew clocks in!</div>
+      </div>
+      <div class="hud-stats">
+        <div class="stat">
+          <div class="stat-val" id="money-display">$0</div>
+          <div class="stat-lbl">Earnings</div>
+        </div>
+        <div class="stat">
+          <div class="hearts" id="hearts">
+            <span class="heart" id="h1">❤️</span>
+            <span class="heart" id="h2">❤️</span>
+            <span class="heart" id="h3">❤️</span>
+          </div>
+          <div class="stat-lbl">Lives</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORM BANNER -->
+    <div class="storm-banner" id="storm-banner">
+      <span class="storm-cloud">⛈️</span> Storm rolling in — solar output dropping!
+    </div>
+
+    <!-- TIME BAR -->
+    <div class="flow-card" style="padding:12px 16px;">
+      <div class="time-labels">
+        <span>🌅 6 AM</span>
+        <span>☀️ Noon</span>
+        <span>🌇 6 PM</span>
+        <span>🌙 Midnight</span>
+      </div>
+      <div class="time-track">
+        <div class="time-fill" id="time-fill" style="width:0%"></div>
+        <div class="time-sun" id="time-sun" style="left:0%">🕐</div>
+      </div>
+    </div>
+
+    <!-- POWER METER -->
+    <div class="meter-section" id="meter-section">
+      <div class="meter-title">Grid Balance — Supply vs. Demand</div>
+      <svg class="meter-dial" viewBox="0 0 180 100" xmlns="http://www.w3.org/2000/svg">
+        <!-- arc bg -->
+        <path d="M 15 90 A 75 75 0 0 1 165 90" fill="none" stroke="#e8d5b0" stroke-width="14" stroke-linecap="round"/>
+        <!-- danger zone left -->
+        <path d="M 15 90 A 75 75 0 0 1 55 27" fill="none" stroke="#fcd9b0" stroke-width="14" stroke-linecap="round"/>
+        <!-- ok zone -->
+        <path d="M 55 27 A 75 75 0 0 1 125 27" fill="none" stroke="#bbf7d0" stroke-width="14" stroke-linecap="round"/>
+        <!-- danger zone right -->
+        <path d="M 125 27 A 75 75 0 0 1 165 90" fill="none" stroke="#fcd9b0" stroke-width="14" stroke-linecap="round"/>
+        <!-- labels -->
+        <text x="14" y="105" font-size="9" font-family="Nunito,sans-serif" fill="#e05a40" font-weight="700">LOW</text>
+        <text x="75" y="16" font-size="9" font-family="Nunito,sans-serif" fill="#059669" font-weight="700" text-anchor="middle">BALANCED</text>
+        <text x="152" y="105" font-size="9" font-family="Nunito,sans-serif" fill="#e05a40" font-weight="700">HIGH</text>
+        <!-- needle -->
+        <line id="needle" x1="90" y1="90" x2="90" y2="20" stroke="#c94f2a" stroke-width="3" stroke-linecap="round" transform="rotate(0, 90, 90)"/>
+        <circle cx="90" cy="90" r="6" fill="#c94f2a"/>
+      </svg>
+      <div class="meter-numbers">
+        <span>-50+ kW</span><span style="margin-left:auto;margin-right:auto">0</span><span>+50+ kW</span>
+      </div>
+      <div class="balance-label ok" id="balance-label">Balanced ✓</div>
+    </div>
+
+    <!-- FLOW CARDS -->
+    <div class="flows-grid">
+      <div class="flow-card">
+        <div class="flow-header">
+          <div class="flow-icon icon-solar">☀️</div>
+          <div>
+            <div class="flow-name">Solar</div>
+            <div class="flow-sub" id="solar-sub">Generating</div>
+          </div>
+        </div>
+        <div class="flow-val solar" id="solar-val">0 kW</div>
+      </div>
+      <div class="flow-card">
+        <div class="flow-header">
+          <div class="flow-icon icon-load">🏭</div>
+          <div>
+            <div class="flow-name">Factory Load</div>
+            <div class="flow-sub" id="load-sub">Normal ops</div>
+          </div>
+        </div>
+        <div class="flow-val load" id="load-val">0 kW</div>
+      </div>
+      <div class="flow-card full">
+        <div class="flow-header">
+          <div class="flow-icon icon-battery">🔋</div>
+          <div style="flex:1">
+            <div class="flow-name">Battery Storage</div>
+            <div class="flow-sub" id="bat-sub">Standby</div>
+          </div>
+          <div style="font-size:18px;font-weight:900;color:#059669;" id="bat-pct">50%</div>
+        </div>
+        <div class="battery-bar-wrap">
+          <div class="battery-bar-track">
+            <div class="battery-bar-fill" id="bat-fill" style="width:50%"></div>
+          </div>
+        </div>
+        <div class="flow-val battery" id="bat-flow-val" style="font-size:16px;margin-top:4px;">Idle</div>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls-row">
+      <div class="ctrl-card">
+        <div class="ctrl-label">🔋 Battery</div>
+        <div class="ctrl-btn-wrap">
+          <button class="btn btn-yellow btn-sm" onclick="setBatteryMode('charge')" id="btn-charge">⬆ Charge</button>
+          <button class="btn btn-gray btn-sm" onclick="setBatteryMode('idle')" id="btn-idle">Idle</button>
+          <button class="btn btn-green btn-sm" onclick="setBatteryMode('discharge')" id="btn-discharge">⬇ Discharge</button>
+        </div>
+      </div>
+      <div class="ctrl-card">
+        <div class="ctrl-label">⚙️ Generator</div>
+        <button class="gen-toggle off" id="gen-btn" onclick="toggleGenerator()">OFF</button>
+        <div class="gen-status" id="gen-status">Standby</div>
+        <div style="font-size:11px;color:#e05a40;margin-top:4px;" id="gen-cost-disp"></div>
+      </div>
+      <div class="ctrl-card">
+        <div class="ctrl-label">⚡ Gen Output</div>
+        <div class="flow-val gen" id="gen-val">0 kW</div>
+        <div class="flow-sub" id="gen-sub">Off</div>
+      </div>
+    </div>
+
+    <!-- EVENT LOG -->
+    <div class="event-log" id="event-log">
+      <div class="log-entry good">Factory fired up! Keep the grid balanced.</div>
+    </div>
+
+  </div><!-- /game screen -->
+
+  <!-- END OF DAY MODAL -->
+  <div class="modal-bg" id="eod-modal">
+    <div class="modal">
+      <div class="modal-emoji" id="eod-emoji">🍬</div>
+      <div class="modal-title" id="eod-title">Day Complete!</div>
+      <div class="modal-sub" id="eod-sub">Great work keeping the lights on.</div>
+      <div class="modal-stats">
+        <div class="m-stat">
+          <div class="m-stat-val" id="eod-earned">$0</div>
+          <div class="m-stat-lbl">Day earnings</div>
+        </div>
+        <div class="m-stat">
+          <div class="m-stat-val" id="eod-total">$0</div>
+          <div class="m-stat-lbl">Total</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="eod-btn" onclick="nextDay()">Next Day →</button>
+    </div>
+  </div>
+
+  <!-- WIN MODAL -->
+  <div class="modal-bg" id="win-modal">
+    <div class="modal">
+      <div class="modal-emoji">🏆</div>
+      <div class="modal-title" style="color:#4caf7d;">You did it!</div>
+      <div class="modal-sub">A full week of candy production! The factory is a hit.</div>
+      <div class="modal-stats">
+        <div class="m-stat">
+          <div class="m-stat-val" id="win-money">$0</div>
+          <div class="m-stat-lbl">Total earned</div>
+        </div>
+        <div class="m-stat">
+          <div class="m-stat-val" id="win-blackouts">0</div>
+          <div class="m-stat-lbl">Blackouts</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="restartGame()">Play Again</button>
+    </div>
+  </div>
+
+  <!-- LOSE MODAL -->
+  <div class="modal-bg" id="lose-modal">
+    <div class="modal">
+      <div class="modal-emoji">💀</div>
+      <div class="modal-title" style="color:#e05a40;">Lights Out!</div>
+      <div class="modal-sub" id="lose-sub">The candy business closed its doors.</div>
+      <div class="modal-stats">
+        <div class="m-stat">
+          <div class="m-stat-val" id="lose-money">$0</div>
+          <div class="m-stat-lbl">Earned before closing</div>
+        </div>
+        <div class="m-stat">
+          <div class="m-stat-val" id="lose-day">1</div>
+          <div class="m-stat-lbl">Days survived</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="restartGame()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- BLACKOUT FLASH -->
+  <div class="blackout-flash" id="blackout-flash">
+    <span>💥 BLACKOUT!</span>
+    <small>Factory offline for 4 seconds...</small>
+  </div>
+
+</div>
+
+<script>
+// ── GAME STATE ──
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const FLAVORS = [
+  'The caramel crew clocks in!',
+  'Taffy Tuesday — stretch those wires!',
+  'Midweek crunch — gummy bears incoming!',
+  'Chocolate Thursday — peak demand ahead!',
+  'TGIF — fudge production at full swing!',
+  'Weekend rush — the gift shop is PACKED!',
+  "Sunday funday — last batch of the week!"
+];
+// Day configs: {peakLoad, stormChance, stormDuration (0-1 fraction of day)}
+const DAY_CONFIGS = [
+  { peakLoad: 60, stormChance: 0,   stormDuration: 0 },
+  { peakLoad: 65, stormChance: 0,   stormDuration: 0 },
+  { peakLoad: 68, stormChance: 0.5, stormDuration: 0.18 },
+  { peakLoad: 72, stormChance: 0.6, stormDuration: 0.22 },
+  { peakLoad: 75, stormChance: 0.6, stormDuration: 0.25 },
+  { peakLoad: 78, stormChance: 0.7, stormDuration: 0.28 },
+  { peakLoad: 80, stormChance: 1.0, stormDuration: 0.35 },
+];
+
+const GEN_OUTPUT = 50; // kW
+const GEN_COST_PER_SEC = 0.8; // $/s
+const FACTORY_EARN_PER_SEC = 2.2; // $/s
+const BLACKOUT_PENALTY = 80;
+const BLACKOUT_DURATION = 4000; // ms
+const DAY_DURATION = 120000; // 2 min in ms
+const BATTERY_MAX = 100; // kWh (display as %)
+const BATTERY_CHARGE_RATE = 15; // kW when charging
+const BATTERY_DISCHARGE_RATE = 30; // kW when discharging
+const MAX_SOLAR = 55; // kW peak
+
+let G = {}; // game state
+let gameInterval = null;
+let lastTick = 0;
+
+function initState() {
+  G = {
+    day: 0,
+    money: 0,
+    dayMoney: 0,
+    lives: 3,
+    blackouts: 0,
+    batteryPct: 50,
+    batteryMode: 'idle', // charge | idle | discharge
+    genOn: false,
+    genCostAccum: 0,
+    timeOfDay: 0, // 0-1 (0=midnight, 0.25=6am, 0.75=6pm)
+    stormActive: false,
+    stormStart: 0,
+    stormEnd: 0,
+    inBlackout: false,
+    blackoutCount: 0,
+    gameOver: false,
+    gameWon: false,
+    deficitAccum: 0, // accumulated deficit seconds before blackout
+    factoryRunning: true,
+  };
+}
+
+function getDayConfig() { return DAY_CONFIGS[G.day] || DAY_CONFIGS[6]; }
+
+function getSolarOutput() {
+  // 0 before 6am (t<0.25), peaks at noon (t=0.5), 0 after 6pm (t=0.75)
+  const t = G.timeOfDay;
+  let solar = 0;
+  if (t >= 0.25 && t <= 0.75) {
+    const dayProgress = (t - 0.25) / 0.5; // 0-1 across daylight
+    solar = MAX_SOLAR * Math.sin(dayProgress * Math.PI);
+    solar *= (1 + getDayConfig().peakLoad / 200); // scale slightly with difficulty
+    solar = Math.min(solar, MAX_SOLAR + 5);
+  }
+  if (G.stormActive) solar *= 0.25;
+  return Math.max(0, solar);
+}
+
+function getFactoryLoad() {
+  const t = G.timeOfDay;
+  const base = getDayConfig().peakLoad;
+  // Load profile: low at night, ramps up 7am, peaks 10am-3pm, drops after 5pm
+  let load;
+  if (t < 0.25) { load = base * 0.35; } // midnight-6am
+  else if (t < 0.33) { load = base * 0.35 + (base * 0.45) * ((t-0.25)/0.08); } // 6-8am ramp
+  else if (t < 0.42) { load = base * 0.8 + (base * 0.2) * ((t-0.33)/0.09); } // 8-10am
+  else if (t < 0.625) { load = base; } // 10am-3pm peak
+  else if (t < 0.71) { load = base - (base * 0.35) * ((t-0.625)/0.085); } // 3-5pm taper
+  else if (t < 0.79) { load = base * 0.65 - (base * 0.3) * ((t-0.71)/0.08); } // 5-7pm
+  else { load = base * 0.35; } // 7pm+ night
+  // small random wobble
+  load += (Math.random() - 0.5) * 4;
+  return Math.max(10, load);
+}
+
+function getSupply(solar, genOut, battOut) {
+  return solar + genOut + battOut;
+}
+
+function startGame() {
+  initState();
+  showScreen('game');
+  beginDay();
+}
+
+function beginDay() {
+  const cfg = getDayConfig();
+  G.timeOfDay = 0.0; // start at midnight
+  G.deficitAccum = 0;
+  G.dayMoney = 0;
+  G.factoryRunning = true;
+  G.stormActive = false;
+
+  // Set up storm if applicable
+  if (Math.random() < cfg.stormChance) {
+    const start = 0.35 + Math.random() * 0.2;
+    G.stormStart = start;
+    G.stormEnd = start + cfg.stormDuration;
+  } else {
+    G.stormStart = 99; G.stormEnd = 99;
+  }
+
+  updateDayUI();
+  clearInterval(gameInterval);
+  lastTick = performance.now();
+  gameInterval = setInterval(gameTick, 100);
+}
+
+function updateDayUI() {
+  document.getElementById('day-badge').textContent = 'Day ' + (G.day+1);
+  document.getElementById('day-name').textContent = DAYS[G.day];
+  document.getElementById('flavor-text').textContent = FLAVORS[G.day];
+}
+
+function gameTick() {
+  if (G.gameOver || G.inBlackout) return;
+
+  const now = performance.now();
+  const dt = Math.min((now - lastTick) / 1000, 0.2); // seconds, capped
+  lastTick = now;
+
+  // Advance time
+  G.timeOfDay += dt / (DAY_DURATION / 1000);
+  if (G.timeOfDay >= 1) {
+    endDay();
+    return;
+  }
+
+  // Storm logic
+  const wasStorm = G.stormActive;
+  G.stormActive = G.timeOfDay >= G.stormStart && G.timeOfDay <= G.stormEnd;
+  if (G.stormActive && !wasStorm) addLog('Storm rolling in — solar dropping!', 'warn');
+  if (!G.stormActive && wasStorm) addLog('Storm passed. Solar recovering.', 'good');
+
+  // Power calcs
+  const solar = getSolarOutput();
+  const load = getFactoryLoad();
+  let genOut = G.genOn ? GEN_OUTPUT : 0;
+
+  // Battery
+  let batFlow = 0; // positive = discharging into grid, negative = charging
+  if (G.batteryMode === 'charge' && G.batteryPct < 99) {
+    const canCharge = Math.min(BATTERY_CHARGE_RATE, (99 - G.batteryPct) / 100 * BATTERY_MAX * 10);
+    batFlow = -BATTERY_CHARGE_RATE;
+    G.batteryPct = Math.min(100, G.batteryPct + (BATTERY_CHARGE_RATE * dt) / BATTERY_MAX * 10);
+  } else if (G.batteryMode === 'discharge' && G.batteryPct > 1) {
+    batFlow = BATTERY_DISCHARGE_RATE;
+    G.batteryPct = Math.max(0, G.batteryPct - (BATTERY_DISCHARGE_RATE * dt) / BATTERY_MAX * 10);
+    if (G.batteryPct <= 1) { G.batteryMode = 'idle'; addLog('Battery depleted!', 'warn'); }
+  }
+
+  const supply = solar + genOut + (batFlow > 0 ? batFlow : 0);
+  // Charging draws from supply
+  const effectiveLoad = load + (batFlow < 0 ? BATTERY_CHARGE_RATE : 0);
+  const balance = supply - effectiveLoad;
+
+  // Economy
+  if (G.factoryRunning) {
+    const earned = FACTORY_EARN_PER_SEC * dt;
+    G.money += earned;
+    G.dayMoney += earned;
+  }
+  if (G.genOn) {
+    const cost = GEN_COST_PER_SEC * dt;
+    G.money -= cost;
+    G.dayMoney -= cost;
+    G.genCostAccum += cost;
+  }
+
+  // Blackout logic: if balance < -15 kW, accumulate deficit
+  if (balance < -15) {
+    G.deficitAccum += dt;
+    if (G.deficitAccum > 2.5) { // 2.5s of deficit triggers blackout
+      triggerBlackout();
+      return;
+    }
+  } else {
+    G.deficitAccum = Math.max(0, G.deficitAccum - dt * 1.5);
+  }
+
+  // Update UI
+  updateGameUI(solar, load, balance, batFlow, genOut);
+}
+
+function updateGameUI(solar, load, balance, batFlow, genOut) {
+  // Time bar
+  const pct = G.timeOfDay * 100;
+  document.getElementById('time-fill').style.width = pct + '%';
+  // Sun position during day
+  const sunEl = document.getElementById('time-sun');
+  const t = G.timeOfDay;
+  if (t >= 0.25 && t <= 0.75) {
+    sunEl.textContent = '☀️';
+    sunEl.style.left = (pct - 2) + '%';
+  } else {
+    sunEl.textContent = '🌙';
+    sunEl.style.left = (pct - 2) + '%';
+  }
+
+  // Money
+  document.getElementById('money-display').textContent = '$' + Math.max(0, Math.round(G.money));
+
+  // Storm banner
+  document.getElementById('storm-banner').className = 'storm-banner' + (G.stormActive ? ' active' : '');
+
+  // Needle: balance mapped to -75..+75 degrees
+  const clampedBal = Math.max(-55, Math.min(55, balance));
+  const angle = (clampedBal / 55) * 75;
+  document.getElementById('needle').setAttribute('transform', `rotate(${angle}, 90, 90)`);
+
+  // Balance label
+  const lbl = document.getElementById('balance-label');
+  const ms = document.getElementById('meter-section');
+  if (balance >= -10) {
+    lbl.textContent = 'Balanced ✓';
+    lbl.className = 'balance-label ok';
+    ms.className = 'meter-section';
+  } else if (balance >= -20) {
+    lbl.textContent = 'Slight deficit — watch out!';
+    lbl.className = 'balance-label warn';
+    ms.className = 'meter-section';
+  } else {
+    lbl.textContent = 'DEFICIT — add more power!';
+    lbl.className = 'balance-label danger';
+    ms.className = 'meter-section danger-pulse';
+  }
+
+  // Solar
+  document.getElementById('solar-val').textContent = Math.round(solar) + ' kW';
+  document.getElementById('solar-sub').textContent = G.stormActive ? '⛈️ Storm reducing output' : (solar > 5 ? 'Generating' : 'No sunlight');
+
+  // Load
+  document.getElementById('load-val').textContent = Math.round(load) + ' kW';
+  const hr = Math.round(G.timeOfDay * 24);
+  let loadDesc = 'Normal ops';
+  if (load > getDayConfig().peakLoad * 0.95) loadDesc = '🔴 Peak demand!';
+  else if (load < getDayConfig().peakLoad * 0.45) loadDesc = '💤 Night mode';
+  document.getElementById('load-sub').textContent = loadDesc;
+
+  // Battery
+  const batPct = Math.round(G.batteryPct);
+  document.getElementById('bat-pct').textContent = batPct + '%';
+  const fill = document.getElementById('bat-fill');
+  fill.style.width = batPct + '%';
+  fill.className = 'battery-bar-fill' + (batPct < 20 ? ' empty' : batPct < 35 ? ' low' : '');
+  let batDesc = 'Idle';
+  if (G.batteryMode === 'charge') batDesc = '⬆ Charging ' + BATTERY_CHARGE_RATE + ' kW';
+  else if (G.batteryMode === 'discharge') batDesc = '⬇ Discharging ' + BATTERY_DISCHARGE_RATE + ' kW';
+  document.getElementById('bat-flow-val').textContent = batDesc;
+  document.getElementById('bat-sub').textContent = batPct < 15 ? '⚠️ Almost empty!' : batPct > 85 ? 'Well charged' : 'Ready';
+
+  // Generator
+  document.getElementById('gen-val').textContent = Math.round(genOut) + ' kW';
+  document.getElementById('gen-sub').textContent = G.genOn ? 'Running' : 'Off';
+  document.getElementById('gen-cost-disp').textContent = G.genOn ? `-$${GEN_COST_PER_SEC}/s` : '';
+}
+
+function triggerBlackout() {
+  if (G.inBlackout) return;
+  G.inBlackout = true;
+  G.blackouts++;
+  G.blackoutCount++;
+  G.deficitAccum = 0;
+  G.factoryRunning = false;
+  G.money = Math.max(0, G.money - BLACKOUT_PENALTY);
+  G.dayMoney -= BLACKOUT_PENALTY;
+
+  clearInterval(gameInterval);
+
+  // Update hearts
+  const heartId = 'h' + (4 - G.lives);
+  const hEl = document.getElementById('h' + (4 - G.lives + 1));
+  // lose a life
+  G.lives--;
+  if (G.lives >= 0 && G.lives < 3) {
+    document.getElementById('h' + (G.lives+1)).classList.add('lost');
+  }
+
+  addLog('💥 BLACKOUT! Factory shut down. -$' + BLACKOUT_PENALTY, 'danger');
+
+  document.getElementById('blackout-flash').className = 'blackout-flash active';
+
+  setTimeout(() => {
+    document.getElementById('blackout-flash').className = 'blackout-flash';
+    G.inBlackout = false;
+    G.factoryRunning = true;
+
+    if (G.lives <= 0) {
+      endGame(false);
+    } else {
+      lastTick = performance.now();
+      gameInterval = setInterval(gameTick, 100);
+      addLog('Factory back online! Lives remaining: ' + G.lives, 'good');
+    }
+  }, BLACKOUT_DURATION);
+}
+
+function endDay() {
+  clearInterval(gameInterval);
+
+  const eodMoney = Math.round(G.dayMoney);
+  document.getElementById('eod-earned').textContent = (eodMoney >= 0 ? '+$' : '-$') + Math.abs(eodMoney);
+  document.getElementById('eod-total').textContent = '$' + Math.max(0, Math.round(G.money));
+
+  if (G.day >= 6) {
+    endGame(true);
+    return;
+  }
+
+  const emojis = ['🍬','🍭','🍫','🍩','🧁','🍪','🏭'];
+  document.getElementById('eod-emoji').textContent = emojis[G.day] || '🍬';
+  document.getElementById('eod-title').textContent = DAYS[G.day] + ' done!';
+
+  const nextDay = G.day + 1;
+  const msgs = [
+    'Smooth shift. Ready for Tuesday?',
+    'Taffy\'s stretching nicely. Onward!',
+    'Storms ahead — keep that battery charged!',
+    'Peak demand tomorrow. Prep the generator!',
+    'Almost there — two days to go!',
+    'Final day is going to be stormy. Stay sharp!',
+  ];
+  document.getElementById('eod-sub').textContent = msgs[G.day] || 'Another day done!';
+  document.getElementById('eod-btn').textContent = G.day < 6 ? 'Next: ' + DAYS[G.day+1] + ' →' : 'Finish!';
+  document.getElementById('eod-modal').className = 'modal-bg active';
+}
+
+function nextDay() {
+  document.getElementById('eod-modal').className = 'modal-bg';
+  G.day++;
+  G.genOn = false;
+  G.batteryMode = 'idle';
+  updateGenUI();
+  setBatteryModeUI('idle');
+  if (G.day >= 7) { endGame(true); return; }
+  beginDay();
+}
+
+function endGame(won) {
+  clearInterval(gameInterval);
+  G.gameOver = true;
+  G.gameWon = won;
+  document.getElementById('eod-modal').className = 'modal-bg';
+
+  if (won) {
+    document.getElementById('win-money').textContent = '$' + Math.max(0, Math.round(G.money));
+    document.getElementById('win-blackouts').textContent = G.blackouts;
+    document.getElementById('win-modal').className = 'modal-bg active';
+  } else {
+    document.getElementById('lose-money').textContent = '$' + Math.max(0, Math.round(G.money));
+    document.getElementById('lose-day').textContent = G.day + 1;
+    document.getElementById('lose-sub').textContent = G.blackouts >= 3
+      ? 'Three blackouts too many — the investors pulled out.'
+      : 'The grid couldn\'t hold. The candy dream is over.';
+    document.getElementById('lose-modal').className = 'modal-bg active';
+  }
+}
+
+function restartGame() {
+  document.getElementById('win-modal').className = 'modal-bg';
+  document.getElementById('lose-modal').className = 'modal-bg';
+  clearInterval(gameInterval);
+  initState();
+  showScreen('splash');
+}
+
+// ── CONTROLS ──
+function setBatteryMode(mode) {
+  G.batteryMode = mode;
+  setBatteryModeUI(mode);
+  const msgs = { charge: 'Battery charging.', idle: 'Battery idle.', discharge: 'Battery discharging to grid.' };
+  addLog(msgs[mode], 'good');
+}
+
+function setBatteryModeUI(mode) {
+  const btns = { charge: 'btn-charge', idle: 'btn-idle', discharge: 'btn-discharge' };
+  Object.entries(btns).forEach(([m, id]) => {
+    const el = document.getElementById(id);
+    el.style.outline = m === mode ? '3px solid #c94f2a' : 'none';
+    el.style.outlineOffset = '2px';
+  });
+}
+
+function toggleGenerator() {
+  G.genOn = !G.genOn;
+  updateGenUI();
+  addLog(G.genOn ? '⚙️ Generator ON — burning fuel!' : '⚙️ Generator OFF.', G.genOn ? 'warn' : 'good');
+}
+
+function updateGenUI() {
+  const btn = document.getElementById('gen-btn');
+  const status = document.getElementById('gen-status');
+  if (G.genOn) {
+    btn.textContent = 'ON';
+    btn.className = 'gen-toggle on';
+    status.textContent = 'Running — costs $' + GEN_COST_PER_SEC + '/s';
+    status.className = 'gen-status running';
+  } else {
+    btn.textContent = 'OFF';
+    btn.className = 'gen-toggle off';
+    status.textContent = 'Standby';
+    status.className = 'gen-status';
+  }
+}
+
+// ── LOG ──
+function addLog(msg, type) {
+  const log = document.getElementById('event-log');
+  const entry = document.createElement('div');
+  const now = Math.round(G.timeOfDay * 24);
+  const hr = now === 0 ? 'midnight' : now < 12 ? now+'am' : now === 12 ? '12pm' : (now-12)+'pm';
+  entry.className = 'log-entry' + (type ? ' ' + type : '');
+  entry.textContent = '[' + hr + '] ' + msg;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+  if (log.children.length > 30) log.removeChild(log.firstChild);
+}
+
+// ── UTILS ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.className = 'screen');
+  document.getElementById(id).className = 'screen active';
+}
+</script>
+</body>
+</html>
